@@ -793,7 +793,12 @@ export default class Module {
 		this.ast!.render(source, options);
 		source.trim();
 		const { usesTopLevelAwait } = this.astContext;
-		if (usesTopLevelAwait && options.format !== 'es' && options.format !== 'system') {
+		if (
+			usesTopLevelAwait &&
+			options.format !== 'iife' &&
+			options.format !== 'es' &&
+			options.format !== 'system'
+		) {
 			return error(logInvalidFormatForTopLevelAwait(this.id, options.format));
 		}
 		return { source, usesTopLevelAwait };

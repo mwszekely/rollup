@@ -28,7 +28,8 @@ export default function iife(
 		namedExportsMode,
 		log,
 		outro,
-		snippets
+		snippets,
+		usesTopLevelAwait
 	}: FinaliserOptions,
 	{
 		compact,
@@ -89,7 +90,7 @@ export default function iife(
 	);
 	magicString.prepend(`${intro}${interopBlock}`);
 
-	let wrapperIntro = `(${getNonArrowFunctionIntro(parameters, {
+	let wrapperIntro = `(${usesTopLevelAwait ? 'async ' : ''}${getNonArrowFunctionIntro(parameters, {
 		isAsync: false,
 		name: null
 	})}{${n}${useStrict}${n}`;

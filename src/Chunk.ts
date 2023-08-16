@@ -61,6 +61,9 @@ import type { RenderOptions } from './utils/renderHelpers';
 import { makeUnique, renderNamePattern } from './utils/renderNamePattern';
 import { MISSING_EXPORT_SHIM_VARIABLE } from './utils/variableNames';
 
+// I don't know what's causing this, the line numbers are incorrect and I can't find anything that looks like it would satisfy whatever this is?
+/* eslint-disable unicorn/consistent-destructuring */
+
 export interface ModuleDeclarations {
 	dependencies: ChunkDependency[];
 	exports: ChunkExports;
@@ -1177,12 +1180,18 @@ export default class Chunk {
 		};
 
 		let usesTopLevelAwait = false;
+
+		const promiseBaseName = '__tla_promise_'; // TODO: There's a way to auto-generate variables, right? But I can't find the documentation anywhere...
+		let promiseName2 = 0; // TODO: Same as above, so it's got a bad name
+		const allPromiseNames: string[] = []; // All the local names of the promises we assign to the TLA-using module we're importing from
+		const allTlaImporters = new Array<Module>(); // Maps the TLA-using modules we import from (their id/filepath) to all the names of their exports
+
 		for (const module of orderedModules) {
 			let renderedLength = 0;
 			let source: MagicString | undefined;
 			if (module.isIncluded() || includedNamespaces.has(module)) {
 				const rendered = module.render(renderOptions);
-				({ source } = rendered);
+				({ source, usesTopLevelAwait } = rendered);
 				usesTopLevelAwait ||= rendered.usesTopLevelAwait;
 				renderedLength = source.length();
 				if (renderedLength) {
@@ -1202,6 +1211,56 @@ export default class Chunk {
 					for (const name of accessedGlobalVariables) {
 						accessedGlobals.add(name);
 					}
+				}
+
+				// This is to handle top-level await
+				// The idea is that we collect all of the TLA-using modules the entry imports,
+				// then when we get to the entry, we await them all before continuing.
+				const isEntry = this.entryModules.includes(module);
+				if (isEntry || module == orderedModules[orderedModules.length - 1]) {
+					if (usesTopLevelAwait && allTlaImporters.length > 0) {
+						// The entry module is responsible for awaiting every TLA-using module it imports.
+						// It must await them all before the body of the module can execute.
+						const importsAsObjectStrings = [];
+
+						for (const module of allTlaImporters) {
+							importsAsObjectStrings.push(
+								`{ ${[...module.getExports()]
+									.flatMap(key => {
+										const localNames = module.getVariableForExportName(key);
+
+										return key == localNames[0]?.name || localNames[0]?.name == null
+											? key
+											: `${key}: ${localNames[0]!.name}`;
+									})
+									.join(', ')} }`
+							);
+						}
+
+						// TODO: Live bindings would be possible if we used objects with property lookup instead of constant variables
+						magicString.append(
+							`\nconst [${importsAsObjectStrings.join(
+								', '
+							)}] = await Promise.all([${allPromiseNames.join(', ')}]);\n`
+						);
+					}
+				} else if (usesTopLevelAwait) {
+					// This is one of the imported modules that's using top-level await.
+					// Wrap its contents in a Promise, then add that promise to a list of
+					// promises to wait for when execution reaches the module's body
+					const nextPromiseName = `${promiseBaseName}${promiseName2++}`;
+					allPromiseNames.push(nextPromiseName);
+					allTlaImporters.push(module);
+					source.indent(indent);
+					source.prepend(`const ${nextPromiseName} = (async () => {\n`);
+					source.append(`
+\treturn { ${[...module.getExports()]
+						.map(
+							exp =>
+								`get ${exp}() { return ${module.getVariableForExportName(exp)[0]?.name ?? exp}; }`
+						)
+						.join(', ')} }
+})();`);
 				}
 			}
 			const { renderedExports, removedExports } = module.getRenderedExports();
