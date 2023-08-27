@@ -1191,9 +1191,44 @@ export default class Chunk {
 			let source: MagicString | undefined;
 			if (module.isIncluded() || includedNamespaces.has(module)) {
 				const rendered = module.render(renderOptions);
-				({ source, usesTopLevelAwait } = rendered);
+				({ source } = rendered);
 				usesTopLevelAwait ||= rendered.usesTopLevelAwait;
 				renderedLength = source.length();
+
+				// This is to handle top-level await
+				// The idea is that we collect all of the TLA-using modules the entry imports,
+				// then when we get to the entry, we await them all before continuing.
+				const isEntry = this.entryModules.includes(module);
+				const handleEntryTlaLogic = isEntry || module == orderedModules[orderedModules.length - 1];
+				if (handleEntryTlaLogic && usesTopLevelAwait && allTlaImporters.length > 0) {
+					// The entry module is responsible for awaiting every TLA-using module it imports.
+					// It must await them all before the body of the module can execute.
+					const importsAsObjectStrings = [];
+
+					for (const module of allTlaImporters) {
+						importsAsObjectStrings.push(
+							`{ ${[...module.getExports()]
+								.flatMap(key => {
+									const localNames = module.getVariableForExportName(key);
+									if (!localNames[0]?.included) return null;
+
+									return key == localNames[0]?.name || localNames[0]?.name == null
+										? key
+										: `${key}: ${localNames[0]!.name}`;
+								})
+								.filter(v => v != null)
+								.join(', ')} }`
+						);
+					}
+
+					// TODO: Live bindings would be possible if we used objects with property lookup instead of constant variables
+					magicString.append(
+						`\nconst [${importsAsObjectStrings.join(
+							', '
+						)}] = await Promise.all([${allPromiseNames.join(', ')}]);\n`
+					);
+				}
+
 				if (renderedLength) {
 					if (compact && source.lastLine().includes('//')) source.append('\n');
 					renderedModuleSources.set(module, source);
@@ -1213,38 +1248,7 @@ export default class Chunk {
 					}
 				}
 
-				// This is to handle top-level await
-				// The idea is that we collect all of the TLA-using modules the entry imports,
-				// then when we get to the entry, we await them all before continuing.
-				const isEntry = this.entryModules.includes(module);
-				if (isEntry || module == orderedModules[orderedModules.length - 1]) {
-					if (usesTopLevelAwait && allTlaImporters.length > 0) {
-						// The entry module is responsible for awaiting every TLA-using module it imports.
-						// It must await them all before the body of the module can execute.
-						const importsAsObjectStrings = [];
-
-						for (const module of allTlaImporters) {
-							importsAsObjectStrings.push(
-								`{ ${[...module.getExports()]
-									.flatMap(key => {
-										const localNames = module.getVariableForExportName(key);
-
-										return key == localNames[0]?.name || localNames[0]?.name == null
-											? key
-											: `${key}: ${localNames[0]!.name}`;
-									})
-									.join(', ')} }`
-							);
-						}
-
-						// TODO: Live bindings would be possible if we used objects with property lookup instead of constant variables
-						magicString.append(
-							`\nconst [${importsAsObjectStrings.join(
-								', '
-							)}] = await Promise.all([${allPromiseNames.join(', ')}]);\n`
-						);
-					}
-				} else if (usesTopLevelAwait) {
+				if (!handleEntryTlaLogic && usesTopLevelAwait) {
 					// This is one of the imported modules that's using top-level await.
 					// Wrap its contents in a Promise, then add that promise to a list of
 					// promises to wait for when execution reaches the module's body
@@ -1255,10 +1259,12 @@ export default class Chunk {
 					source.prepend(`const ${nextPromiseName} = (async () => {\n`);
 					source.append(`
 \treturn { ${[...module.getExports()]
-						.map(
-							exp =>
-								`get ${exp}() { return ${module.getVariableForExportName(exp)[0]?.name ?? exp}; }`
+						.map(exp =>
+							module.getVariableForExportName(exp)[0]?.included
+								? `get ${exp}() { return ${module.getVariableForExportName(exp)[0]?.name ?? exp}; }`
+								: null
 						)
+						.filter(s => s != null)
 						.join(', ')} }
 })();`);
 				}
