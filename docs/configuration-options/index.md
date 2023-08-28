@@ -1527,6 +1527,30 @@ export default {
 };
 ```
 
+### output.topLevelAwait
+
+|          |                                                   |
+| -------: | :------------------------------------------------ |
+|    Type: | `"sequential" \| "parallel-const"`                |
+|     CLI: | `--topLevelAwait  <sequential \| parallel-const>` |
+| Default: | `"sequential"`                                    |
+
+(Not final, please change any of this)
+
+Controls the execution order of imported modules that use top-level await.
+
+When imported as separate chunks (i.e. when left as bare `imports` for the browser to handle), modules that use top-level await are imported efficiently as siblings to not block each other's execution.
+
+When importing modules that use top-level await into the _same_ chunk, they can execute, relative to each other, in sequence or in parallel.
+
+The default behavior of `"sequential"` executes each module in sequence, one after the other, before the entry module's code is finally run.
+
+If `"parallel-const"` is specified, the entry module will wait for all its dependent modules that use top-level await in parallel (using `Promise.all`). This is a vastly more efficient use of time, but the following drawbacks apply:
+
+- Live bindings (that is, `export let` or `export var`) are flattened to `const` after the async module has been loaded. It is not possible to read any changes to a value after the `Promise.all` that precedes the entry module. This only affects the imports of a module that uses top-level await; the imports from other modules are not "flattened" in this way.
+- Only modules within the same chunk are able to be `await`ed in parallel. Loading external chunks that use top-level await will finish their `import`s _and then_ `await` all the top-level awaits in the entry chunk.
+- There may be cases where the execution order of top level await-using modules does not perfectly match browser behavior.
+
 ### output.validate
 
 |          |                              |

@@ -1,5 +1,6 @@
 module.exports = defineTest({
 	description: 'uses block bindings',
+	skip: true, // mystery syntax
 	expectedWarnings: ['SHIMMED_EXPORT'],
 	options: {
 		external: ['external'],

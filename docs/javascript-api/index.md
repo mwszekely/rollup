@@ -183,6 +183,7 @@ const outputOptions = {
 	sourcemapFile,
 	sourcemapIgnoreList,
 	sourcemapPathTransform,
+	topLevelAwait,
 	validate,
 
 	// danger zone

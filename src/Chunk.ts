@@ -1154,7 +1154,8 @@ export default class Chunk {
 			renderedModules,
 			snippets
 		} = this;
-		const { compact, dynamicImportFunction, format, freeze, namespaceToStringTag } = outputOptions;
+		const { compact, dynamicImportFunction, format, freeze, namespaceToStringTag, topLevelAwait } =
+			outputOptions;
 		const { _, cnst, n } = snippets;
 		this.setDynamicImportResolutions(fileName);
 		this.setImportMetaResolutions(fileName);
@@ -1200,7 +1201,12 @@ export default class Chunk {
 				// then when we get to the entry, we await them all before continuing.
 				const isEntry = this.entryModules.includes(module);
 				const handleEntryTlaLogic = isEntry || module == orderedModules[orderedModules.length - 1];
-				if (handleEntryTlaLogic && usesTopLevelAwait && allTlaImporters.length > 0) {
+				if (
+					topLevelAwait == 'parallel-const' &&
+					handleEntryTlaLogic &&
+					usesTopLevelAwait &&
+					allTlaImporters.length > 0
+				) {
 					// The entry module is responsible for awaiting every TLA-using module it imports.
 					// It must await them all before the body of the module can execute.
 					const importsAsObjectStrings = [];
@@ -1248,25 +1254,34 @@ export default class Chunk {
 					}
 				}
 
-				if (!handleEntryTlaLogic && usesTopLevelAwait) {
+				if (
+					topLevelAwait == 'parallel-const' &&
+					!handleEntryTlaLogic &&
+					rendered.usesTopLevelAwait
+				) {
 					// This is one of the imported modules that's using top-level await.
 					// Wrap its contents in a Promise, then add that promise to a list of
 					// promises to wait for when execution reaches the module's body
 					const nextPromiseName = `${promiseBaseName}${promiseName2++}`;
 					allPromiseNames.push(nextPromiseName);
 					allTlaImporters.push(module);
-					source.indent(indent);
-					source.prepend(`const ${nextPromiseName} = (async () => {\n`);
-					source.append(`
-\treturn { ${[...module.getExports()]
+
+					const exportsAsObjectEntries = `${[...module.getExports()]
 						.map(exp =>
 							module.getVariableForExportName(exp)[0]?.included
 								? `get ${exp}() { return ${module.getVariableForExportName(exp)[0]?.name ?? exp}; }`
 								: null
 						)
 						.filter(s => s != null)
-						.join(', ')} }
-})();`);
+						.join(', ')}`;
+
+					source.append('\n');
+					// TODO: This return isn't affected by the indent on the next line. Why????
+					source.append(`return { ${exportsAsObjectEntries} };`);
+					source.indent(indent);
+
+					source.prepend(`const ${nextPromiseName} = (async () => {\n`);
+					source.append(`\n})();`);
 				}
 			}
 			const { renderedExports, removedExports } = module.getRenderedExports();

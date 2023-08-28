@@ -286,6 +286,7 @@ async function mergeOutputOptions(
 		sourcemapPathTransform: getOption('sourcemapPathTransform'),
 		strict: getOption('strict'),
 		systemNullSetters: getOption('systemNullSetters'),
+		topLevelAwait: getOption('topLevelAwait'),
 		validate: getOption('validate')
 	};
 

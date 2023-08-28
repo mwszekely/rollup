@@ -748,6 +748,7 @@ export interface OutputOptions {
 	sourcemapPathTransform?: SourcemapPathTransformOption;
 	strict?: boolean;
 	systemNullSetters?: boolean;
+	topLevelAwait?: 'sequential' | 'parallel-const';
 	validate?: boolean;
 }
 
@@ -803,6 +804,7 @@ export interface NormalizedOutputOptions {
 	sourcemapPathTransform: SourcemapPathTransformOption | undefined;
 	strict: boolean;
 	systemNullSetters: boolean;
+	topLevelAwait: 'sequential' | 'parallel-const';
 	validate: boolean;
 }
 

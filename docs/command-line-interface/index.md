@@ -108,6 +108,7 @@ export default {
 		sourcemapFile,
 		sourcemapIgnoreList,
 		sourcemapPathTransform,
+		topLevelAwait,
 		validate,
 
 		// danger zone
@@ -425,6 +426,7 @@ Many options have command line equivalents. In those cases, any arguments passed
 --no-strict                 Don't emit `"use strict";` in the generated modules
 --strictDeprecations        Throw errors for deprecated features
 --no-systemNullSetters      Do not replace empty SystemJS setters with `null`
+--topLevelAwait <value>     How imported top-level awaits are handled
 --no-treeshake              Disable tree-shaking optimisations
 --no-treeshake.annotations  Ignore pure call annotations
 --treeshake.correctVarValueBeforeDeclaration Deoptimize variables until declared

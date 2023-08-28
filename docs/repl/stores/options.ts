@@ -333,6 +333,11 @@ export const useOptions = defineStore('options2', () => {
 		defaultValue: true,
 		name: 'output.strict'
 	});
+	const optionOutputTopLevelAwait = getSelect({
+		defaultValue: 'sequential',
+		name: 'topLevelAwait',
+		options: () => ['sequential', 'parallel-const']
+	});
 	const optionOutputValidate = getBoolean({
 		name: 'output.validate'
 	});
@@ -440,6 +445,7 @@ export const useOptions = defineStore('options2', () => {
 		optionOutputSourcemapBaseUrl,
 		optionOutputSourcemapExcludeSources,
 		optionOutputStrict,
+		optionOutputTopLevelAwait,
 		optionOutputValidate,
 		optionPreserveEntrySignatures,
 		optionOutputSystemNullSetters,

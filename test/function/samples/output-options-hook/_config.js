@@ -58,6 +58,7 @@ module.exports = defineTest({
 					sourcemapExcludeSources: false,
 					strict: true,
 					systemNullSetters: true,
+					topLevelAwait: 'sequential',
 					validate: false
 				});
 				assert.strictEqual(options.banner(), 'exports.bar = 43;');

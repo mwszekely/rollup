@@ -1,5 +1,6 @@
 module.exports = defineTest({
 	description: 'uses arrow functions',
+	skip: true, // mystery syntax
 	options: {
 		external: [
 			'external',

@@ -3,9 +3,20 @@ System.register([], (function () {
 	return {
 		execute: (async function () {
 
-			await operation();
+			const __tla_promise_0 = (async () => {
+				await operation();
 
-			await retainedOperation();
+				await retainedOperation();
+
+				const usedAsync = 5;
+return { get foo() { return usedAsync; } };
+			})();
+
+			const usedSync = 5;
+			const [{ foo: usedAsync }] = await Promise.all([__tla_promise_0]);
+
+
+			console.log(usedAsync, usedSync, usedAsync, usedSync);
 
 		})
 	};

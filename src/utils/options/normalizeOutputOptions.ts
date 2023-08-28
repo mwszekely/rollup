@@ -115,6 +115,7 @@ export async function normalizeOutputOptions(
 			| undefined,
 		strict: config.strict ?? true,
 		systemNullSetters: config.systemNullSetters ?? true,
+		topLevelAwait: config.topLevelAwait ?? 'sequential',
 		validate: config.validate || false
 	};
 
